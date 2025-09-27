@@ -229,11 +229,26 @@ Hooks.on("init", () => {
 });
 
 Hooks.on("getSceneControlButtons", function (hudButtons) {
-  let drawingControls = hudButtons.find(val => {
-    return val.name == "drawings";
-  });
-  if (drawingControls) {
-    let index = drawingControls.tools.findIndex(tool => tool.name === "text") + 1;
+  // Handle both V12 (array) and V13 (object) formats
+  let drawingControls;
+  if (Array.isArray(hudButtons)) {
+    // V12 compatibility
+    drawingControls = hudButtons.find(val => {
+      return val.name === "drawings";
+    });
+  } else if (typeof hudButtons === "object" && hudButtons !== null && "drawings" in hudButtons) {
+    // V13 format - hudButtons is an object
+    drawingControls = hudButtons.drawings;
+  }
+  
+  // Additional check for V13 API where tools might not be an array
+  if (drawingControls && drawingControls.tools) {
+    // Ensure tools is an array before using array methods
+    let toolsArray = Array.isArray(drawingControls.tools) ? 
+      drawingControls.tools : 
+      Object.values(drawingControls.tools);
+      
+    let index = toolsArray.findIndex(tool => tool.name === "text") + 1;
     let stickyNoteButton = {
       name: "stickyNote",
       title: game.i18n.localize("STICKYNOTES.Title"),
@@ -243,7 +258,15 @@ Hooks.on("getSceneControlButtons", function (hudButtons) {
       },
       button: true
     };
-    drawingControls.tools.splice(index, 0, stickyNoteButton);
+    
+    // Insert the sticky note button after the text tool
+    if (Array.isArray(drawingControls.tools)) {
+      drawingControls.tools.splice(index, 0, stickyNoteButton);
+    } else {
+      // For V13 object format, we need to handle this differently
+      // We'll add it to the end since we can't easily splice an object
+      drawingControls.tools.stickyNote = stickyNoteButton;
+    }
   }
 });
 
